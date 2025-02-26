@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,13 +49,13 @@ fun ListScreen(viewModel: CarViewModel = CarViewModel()) {
     val cars = viewModel.cars
 
     // Стейт для поискового запроса
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     // Управление открытием/закрытием BottomSheet
-    var isSheetOpen by remember { mutableStateOf(false) }
+    var isSheetOpen by rememberSaveable { mutableStateOf(false) }
 
     // Поле для ввода email
-    var email by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
 
     Scaffold(
         topBar = {
