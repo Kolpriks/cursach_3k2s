@@ -1,6 +1,5 @@
 package com.example.koursework.ui.screens.auth
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,19 +9,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import com.example.koursework.UserActivity
+import com.example.koursework.ui.auth.AuthResult
+import com.example.koursework.ui.auth.AuthViewModel
+import com.example.koursework.ui.outbox.AppState
 import com.example.koursework.ui.theme.MyAppTheme
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun RegisterScreen(navController: NavController) {
+fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
+    val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordRep by remember { mutableStateOf("") }
-    val context = LocalContext.current
+    val result by authViewModel.registerResult.collectAsState()
+
+    // Следим за результатом регистрации
+    LaunchedEffect(result) {
+        result?.let {
+            when (it) {
+                is AuthResult.Success -> {
+                    Toast.makeText(context, "Регистрация прошла успешно, войдите в аккаунт", Toast.LENGTH_SHORT).show()
+                    authViewModel.clearResults()
+                    navController.navigate("LoginScreen") {
+                        popUpTo("RegisterScreen") { inclusive = true }
+                    }
+                }
+                is AuthResult.Error -> {
+                    Toast.makeText(context, it.message, Toast.LENGTH_SHORT).show()
+                    authViewModel.clearResults()
+                }
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -30,19 +51,16 @@ fun RegisterScreen(navController: NavController) {
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(300.dp)
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(300.dp)) {
             Text(
                 text = "Регистрация Аккаунта",
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 24.dp),
-                color = MaterialTheme.colorScheme.inverseSurface
+                color = MaterialTheme.colorScheme.inverseSurface,
+                modifier = Modifier.padding(bottom = 24.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     OutlinedTextField(
@@ -52,7 +70,6 @@ fun RegisterScreen(navController: NavController) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -63,7 +80,6 @@ fun RegisterScreen(navController: NavController) {
                             .fillMaxWidth()
                             .padding(top = 16.dp)
                     )
-
                     OutlinedTextField(
                         value = passwordRep,
                         onValueChange = { passwordRep = it },
@@ -77,55 +93,31 @@ fun RegisterScreen(navController: NavController) {
                 }
             }
 
+            Spacer(Modifier.height(32.dp))
+
             Button(
                 onClick = { navController.navigate("LoginScreen") },
-                modifier = Modifier
-                    .width(250.dp)
-                    .padding(top = 160.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.background
-                )
+                modifier = Modifier.width(250.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text(
-                    text = "Уже есть аккаунт?",
-                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
-                )
+                Text("Уже есть аккаунт?")
             }
+
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = {
-                    if (password == passwordRep && email.isNotBlank() && password.isNotBlank()) {
-                        val intent = Intent(context, UserActivity::class.java)
-                        context.startActivity(intent)
-                        Toast.makeText(context, "Вы успешно зарегистрированы!", Toast.LENGTH_SHORT).show()
+                    if (email.isNotBlank() && password.isNotBlank() && password == passwordRep) {
+                        authViewModel.register(email, password)
                     } else {
                         Toast.makeText(context, "Проверьте введённые данные", Toast.LENGTH_SHORT).show()
                     }
                 },
-                modifier = Modifier
-                    .width(250.dp)
-                    .padding(top = 14.dp)
-                ,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.background
-                )
+                modifier = Modifier.width(250.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text(
-                    text = "Зарегистрироваться",
-                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
-                )
+                Text("Зарегистрироваться")
             }
         }
-    }
-}
-
-@Preview(showBackground = true, name = "Register Screen Preview")
-@Composable
-fun RegisterScreenPreview() {
-    MyAppTheme {
-        val navController = rememberNavController()
-        RegisterScreen(navController)
     }
 }

@@ -3,37 +3,20 @@ package com.example.koursework.ui.screens.manager
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.Base64
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonColors
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -41,14 +24,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,22 +35,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import coil3.compose.rememberAsyncImagePainter
-import com.example.koursework.ui.components.AssignBuyerBottomSheet
-import com.example.koursework.ui.components.CarList
+import com.example.koursework.network.CarRequest
 import com.example.koursework.ui.components.CarViewModel
 import com.example.koursework.ui.theme.MyAppTheme
+import java.io.InputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditScreen(viewModel: CarViewModel = CarViewModel()) {
-    val cars = viewModel.cars
-    var searchQuery by remember { mutableStateOf("") }
-    var isSheetOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Поля для формы
-    var brandAndModel by remember { mutableStateOf("") }
+    // Поля формы
+    var name by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
+    var consumption by remember { mutableStateOf("") }
+    var seats by remember { mutableStateOf("") }
+    var co2 by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -91,12 +69,21 @@ fun EditScreen(viewModel: CarViewModel = CarViewModel()) {
         return fileName
     }
 
-    // Получаем имя файла для отображения в TextField
-    val selectedImageName = selectedImageUri?.let { uri ->
-        getFileNameFromUri(context, uri)
-    } ?: ""
+    // Функция для конвертации изображения в Base64
+    fun uriToBase64(context: Context, uri: Uri): String? {
+        return try {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            val bytes = inputStream?.readBytes()
+            inputStream?.close()
+            if (bytes != null) Base64.encodeToString(bytes, Base64.NO_WRAP) else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 
-    // Лаунчер для выбора изображения
+    val selectedImageName = selectedImageUri?.let { getFileNameFromUri(context, it) } ?: ""
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -106,286 +93,122 @@ fun EditScreen(viewModel: CarViewModel = CarViewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { newQuery ->
-                                searchQuery = newQuery
-                            },
-                            placeholder = {
-                                Text(
-                                    text = "Поиск по названию авто",
-                                    color = MaterialTheme.colorScheme.inverseSurface
-                                )
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.surface,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.surface,
-                                cursorColor = MaterialTheme.colorScheme.inverseSurface,
-                                focusedTextColor = MaterialTheme.colorScheme.inverseSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.inverseSurface,
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            // Логика поиска (если нужна)
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.inverseSurface
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Иконка поиска"
-                        )
-                    }
-                },
+                title = { Text("Добавить автомобиль") },
                 colors = TopAppBarDefaults.topAppBarColors()
             )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        // Добавляем "плавающую" кнопку
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { isSheetOpen = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Добавить объявление"
-                )
-            }
         }
     ) { paddingValues ->
-        val filteredCars = cars.filter { car ->
-            car.name.contains(searchQuery, ignoreCase = true)
-        }
-
-        Box(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(4.dp)
-        ) {
-            CarList(
-                cars = filteredCars,
-                onDeleteCar = {
-                    isSheetOpen = true
-                },
-                buttonText = "Реактировать"
+        Column(modifier = Modifier
+            .padding(paddingValues)
+            .padding(16.dp)) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Марка и модель") },
+                modifier = Modifier.fillMaxWidth()
             )
-        }
-
-        // Наша нижняя шторка (BottomSheet)
-        if (isSheetOpen) {
-            AssignBuyerBottomSheet(
-                onCloseSheet = { isSheetOpen = false },
-                sheetContent = {
-                    ConstraintLayout(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = price,
+                onValueChange = { price = it },
+                label = { Text("Цена") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = consumption,
+                onValueChange = { consumption = it },
+                label = { Text("Расход топлива (л/100км)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = seats,
+                onValueChange = { seats = it },
+                label = { Text("Количество мест") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = co2,
+                onValueChange = { co2 = it },
+                label = { Text("Выбросы CO2") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Описание") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text
+                )
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = selectedImageName,
+                    onValueChange = {},
+                    label = { Text("Выбранное изображение") },
+                    readOnly = true,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                    Icon(imageVector = Icons.Default.FileUpload, contentDescription = "Выбрать изображение")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    if (name.isBlank() || price.isBlank() || consumption.isBlank() ||
+                        seats.isBlank() || co2.isBlank()
                     ) {
-                        // Создаем ссылки для всех элементов
-                        val (
-                            rowImagePicker, imageBox, brandField,
-                            priceField, descriptionField, saveButton
-                        ) = createRefs()
-
-                        // Ряд для поля ввода выбранного изображения и иконки загрузки
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .constrainAs(rowImagePicker) {
-                                    top.linkTo(parent.top)
-                                    start.linkTo(parent.start)
-                                    end.linkTo(parent.end)
-                                }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedImageName,
-                                onValueChange = { /* Ручное редактирование запрещено */ },
-                                label = { Text("Выбранное изображение", color = MaterialTheme.colorScheme.inverseSurface) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                    cursorColor = MaterialTheme.colorScheme.outline,
-                                    focusedTextColor = MaterialTheme.colorScheme.outline,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.outline,
-                                ),
-                                trailingIcon = {
-                                    if (selectedImageUri != null) {
-                                        IconButton(
-                                            onClick = { /* Очищаем выбранное изображение */ selectedImageUri = null },
-                                            colors = IconButtonDefaults.iconButtonColors(
-                                                containerColor = MaterialTheme.colorScheme.surface,
-                                                contentColor = MaterialTheme.colorScheme.inverseSurface
-                                            )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Cancel,
-                                                contentDescription = "Очистить выбор"
-                                            )
-                                        }
-                                    }
-                                },
-                                readOnly = true,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            IconButton(
-                                onClick = { imagePickerLauncher.launch("image/*") }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FileUpload,
-                                    contentDescription = "Загрузить фото"
-                                )
-                            }
-                        }
-
-                        // Блок для изображения: если изображение выбрано – показываем его,
-                        // иначе оставляем пустое пространство с нулевой высотой.
-                        if (selectedImageUri != null) {
-                            Image(
-                                painter = rememberAsyncImagePainter(model = selectedImageUri),
-                                contentDescription = "Selected image",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .border(BorderStroke(1.dp, Color.Gray), RoundedCornerShape(8.dp))
-                                    .constrainAs(imageBox) {
-                                        top.linkTo(rowImagePicker.bottom, margin = 8.dp)
-                                        start.linkTo(parent.start)
-                                        end.linkTo(parent.end)
-                                    }
-                            )
+                        Toast.makeText(context, "Заполните все обязательные поля", Toast.LENGTH_SHORT).show()
+                    } else if (selectedImageUri == null) {
+                        Toast.makeText(context, "Выберите изображение", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val imageBase64 = uriToBase64(context, selectedImageUri!!)
+                        if (imageBase64 == null) {
+                            Toast.makeText(context, "Ошибка обработки изображения", Toast.LENGTH_SHORT).show()
                         } else {
-                            Spacer(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(0.dp)
-                                    .constrainAs(imageBox) {
-                                        top.linkTo(rowImagePicker.bottom, margin = 8.dp)
-                                        start.linkTo(parent.start)
-                                        end.linkTo(parent.end)
-                                    }
+                            // Формируем запрос для создания автомобиля
+                            val newCarRequest = CarRequest(
+                                name = name,
+                                price = price,
+                                consumption = consumption,
+                                seats = seats.toIntOrNull() ?: 0,
+                                co2 = co2,
+                                image = imageBase64,
+                                description = description
                             )
-                        }
-
-                        // Поле ввода "Марка и модель"
-                        OutlinedTextField(
-                            value = brandAndModel,
-                            onValueChange = { brandAndModel = it },
-                            label = { Text("Марка и модель", color = MaterialTheme.colorScheme.inverseSurface) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                cursorColor = MaterialTheme.colorScheme.outline,
-                                focusedTextColor = MaterialTheme.colorScheme.outline,
-                                unfocusedTextColor = MaterialTheme.colorScheme.outline,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .constrainAs(brandField) {
-                                    top.linkTo(imageBox.bottom, margin = 8.dp)
-                                    start.linkTo(parent.start)
-                                    end.linkTo(parent.end)
-                                }
-                        )
-
-                        // Поле ввода "Цена"
-                        OutlinedTextField(
-                            value = price,
-                            onValueChange = { price = it },
-                            label = { Text("Цена", color = MaterialTheme.colorScheme.inverseSurface) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                cursorColor = MaterialTheme.colorScheme.outline,
-                                focusedTextColor = MaterialTheme.colorScheme.outline,
-                                unfocusedTextColor = MaterialTheme.colorScheme.outline,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .constrainAs(priceField) {
-                                    top.linkTo(brandField.bottom, margin = 8.dp)
-                                    start.linkTo(parent.start)
-                                    end.linkTo(parent.end)
-                                }
-                        )
-
-                        // Поле ввода "Описание"
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Описание", color = MaterialTheme.colorScheme.inverseSurface) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                cursorColor = MaterialTheme.colorScheme.outline,
-                                focusedTextColor = MaterialTheme.colorScheme.outline,
-                                unfocusedTextColor = MaterialTheme.colorScheme.outline,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .constrainAs(descriptionField) {
-                                    top.linkTo(priceField.bottom, margin = 8.dp)
-                                    start.linkTo(parent.start)
-                                    end.linkTo(parent.end)
-                                }
-                        )
-
-                        Button(
-                            onClick = {
-                                if (selectedImageUri == null) {
-                                    Toast.makeText(context, "Пожалуйста, выберите фото", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Данные сохранены", Toast.LENGTH_SHORT)
-                                        .show()
-                                }
-                            },
-                            shape = MaterialTheme.shapes.small,
-                            colors = ButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.primary,
-                                disabledContentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .constrainAs(saveButton) {
-                                    top.linkTo(descriptionField.bottom, margin = 8.dp)
-                                    start.linkTo(parent.start)
-                                    end.linkTo(parent.end)
-                                }
-                        ) {
-                            Text("Сохранить")
+                            viewModel.addCar(newCarRequest)
+                            Toast.makeText(context, "Машина добавлена", Toast.LENGTH_SHORT).show()
+                            // Очистка полей формы
+                            name = ""
+                            price = ""
+                            consumption = ""
+                            seats = ""
+                            co2 = ""
+                            description = ""
+                            selectedImageUri = null
                         }
                     }
-                }
-            )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Сохранить")
+            }
         }
     }
 }
 
-
-
-@Preview(showBackground = true, name = "Home Screen Preview")
+@Preview(showBackground = true)
 @Composable
 fun EditScreenPreview() {
     MyAppTheme {
