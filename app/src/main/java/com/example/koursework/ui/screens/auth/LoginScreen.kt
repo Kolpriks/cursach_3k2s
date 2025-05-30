@@ -33,7 +33,6 @@ fun LoginScreen(
         result?.let {
             when (it) {
                 is AuthResult.Success -> {
-                    // Сохраняем ID, роль и email в AppState
                     AppState.logIn(context, it.userId, it.role, email)
                     authViewModel.clearResults()
 
